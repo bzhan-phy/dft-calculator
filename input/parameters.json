@@ -1,0 +1,18 @@
+{
+    "kpoints": {
+        "num_kpoints": 4
+    },
+    "pseudopotentials": {
+        "C": {
+            "V0": -10.0
+        }
+    },
+    "exchange_correlation": {
+        "functional": "LDA"
+    },
+    "scf": {
+        "max_iterations": 50,
+        "convergence_threshold": 1e-4,
+        "mixing_factor": 0.3
+    }
+}
