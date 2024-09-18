@@ -22,7 +22,7 @@ def setup_logging():
         handlers=[
             logging.StreamHandler()
         ]
-        
+
     )
 
 
@@ -64,13 +64,15 @@ def main():
     lattice_vectors = np.array(structure_data['lattice_vectors'])
     atomic_positions = structure_data['atomic_positions']
     atomic_symbols = structure_data['atomic_symbols']
+    dim = structure_data.get('dim', 2)  # 默认二维
+    logger.info(dim)
     atomic_structure = AtomicStructure(lattice_vectors, atomic_positions, atomic_symbols)
     logger.info(f"原子数量: {atomic_structure.get_num_atoms()}")
     
     # 初始化k点网格
     logger.info("初始化k点网格...")
     num_kpoints = parameters_data['kpoints']['num_kpoints']
-    kpoints = KPoints(num_kpoints, lattice_vectors)
+    kpoints = KPoints(num_kpoints, lattice_vectors, dim=dim)
     logger.info(f"总k点数: {len(kpoints.k_points)}")
     
     # 初始化赝势
@@ -85,11 +87,13 @@ def main():
     
     # 初始化哈密顿量构建器
     logger.info("初始化哈密顿量构建器...")
+    dim = structure_data.get('dim', 2)
     hamiltonian_builder = Hamiltonian(
         atomic_structure=atomic_structure,
         k_points=kpoints,
         pseudopotentials=pseudopotentials,
-        exchange_correlation=exchange_correlation
+        exchange_correlation=exchange_correlation,
+        dim=dim
     )
     
     # 读取SCF参数

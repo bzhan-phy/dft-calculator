@@ -13,7 +13,7 @@ class Hamiltonian:
     哈密顿量构建类，用于构建总的哈密顿量矩阵。
     """
 
-    def __init__(self, atomic_structure, k_points, pseudopotentials, exchange_correlation, max_G=10, num_eigen=10):
+    def __init__(self, atomic_structure, k_points, pseudopotentials, exchange_correlation, max_G=10, num_eigen=10,dim=3):
         """
         初始化哈密顿量构建器。
 
@@ -37,6 +37,7 @@ class Hamiltonian:
         self.pseudopotentials = pseudopotentials
         self.exchange_correlation = exchange_correlation
         self.max_G = max_G
+        self.dim=dim
         self.G_vectors = self.generate_G_vectors()
         self.num_G = len(self.G_vectors)
         self.num_eigen = num_eigen
@@ -51,14 +52,23 @@ class Hamiltonian:
         G_vectors : numpy.ndarray
             G矢量数组，形状为 (num_G, 3)。
         """
-        # 对于二维材料，我们简化为Gz = 0
+        logger.info(f"生成G矢量，系统维度: {self.dim}D")
         Gx = np.arange(-self.max_G, self.max_G + 1)
         Gy = np.arange(-self.max_G, self.max_G + 1)
-        Gx, Gy = np.meshgrid(Gx, Gy)
-        Gx = Gx.flatten()
-        Gy = Gy.flatten()
-        Gz = np.zeros_like(Gx)  # 二维材料
-        G_vectors = np.vstack((Gx, Gy, Gz)).T
+
+        if self.dim == 2:
+            #Gz = np.zeros_like(Gx)  # 二维材料
+            Gx_mesh, Gy_mesh = np.meshgrid(Gx, Gy)
+            Gz = np.zeros_like(Gx_mesh.flatten())
+            G_vectors = np.vstack((Gx_mesh.flatten(), Gy_mesh.flatten(), Gz.flatten())).T
+        elif self.dim == 3:
+            Gz = np.arange(-self.max_G, self.max_G + 1)
+            Gx_mesh, Gy_mesh, Gz_mesh = np.meshgrid(Gx, Gy, Gz)
+            G_vectors = np.vstack((Gx_mesh.flatten(), Gy_mesh.flatten(), Gz_mesh.flatten())).T
+        else:
+            raise ValueError("维度参数dim必须为2或3。")
+        
+        logger.info(f"生成的G矢量数量: {G_vectors.shape[0]}")
         return G_vectors
 
     def kinetic_energy(self):
