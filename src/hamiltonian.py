@@ -3,6 +3,7 @@
 import numpy as np
 from scipy.constants import electron_volt, pi
 import logging
+import scipy
 
 # 配置日志记录
 logging.basicConfig(level=logging.INFO)
@@ -13,7 +14,7 @@ class Hamiltonian:
     哈密顿量构建类，用于构建总的哈密顿量矩阵。
     """
 
-    def __init__(self, atomic_structure, k_points, pseudopotentials, exchange_correlation, max_G=10, num_eigen=10,dim=3):
+    def __init__(self, atomic_structure, pseudopotentials, exchange_correlation, max_G=10, num_eigen=10,dim=3):
         """
         初始化哈密顿量构建器。
 
@@ -33,7 +34,7 @@ class Hamiltonian:
             要求解的本征值和本征向量的数量。
         """
         self.atomic_structure = atomic_structure
-        self.k_points = k_points
+        #self.k_points = k_points
         self.pseudopotentials = pseudopotentials
         self.exchange_correlation = exchange_correlation
         self.max_G = max_G
@@ -71,7 +72,7 @@ class Hamiltonian:
         logger.info(f"生成的G矢量数量: {G_vectors.shape[0]}")
         return G_vectors
 
-    def kinetic_energy(self):
+    def kinetic_energy(self,k):
         """
         计算动能部分的哈密顿量矩阵。
 
@@ -80,15 +81,14 @@ class Hamiltonian:
         T : numpy.ndarray
             动能矩阵，形状为 (num_G, num_G)。
         """
-        logger.info("计算动能部分...")
+        logger.debug("计算动能部分...")
         # 动能算符在平面波基组下为 (ħ²|G+k|²)/(2m)
         # 这里我们使用简化的单位，使得 ħ²/(2m) = 1
         # 真实计算中需要考虑实际的单位和缩放因子
-        k = self.k_points.current_k_point  # 当前k点
         G_plus_k = self.G_vectors + k  # |G + k|
         kinetic = np.sum(G_plus_k**2, axis=1)
-        T = np.diag(kinetic)
-        logger.info("动能部分计算完成。")
+        T = scipy.sparse.diags(kinetic, format='csr')
+        logger.debug("动能部分计算完成。")
         return T
 
     def potential_energy(self, electron_density):
@@ -121,7 +121,7 @@ class Hamiltonian:
         logger.info("势能部分计算完成。")
         return V
 
-    def total_hamiltonian(self, electron_density):
+    def total_hamiltonian(self, electron_density,k):
         """
         构建总的哈密顿量矩阵。
 
@@ -135,9 +135,9 @@ class Hamiltonian:
         H : numpy.ndarray
             总哈密顿量矩阵，形状为 (num_G, num_G)。
         """
-        logger.info("构建总哈密顿量...")
-        T = self.kinetic_energy()
+        logger.debug("构建总哈密顿量...")
+        T = self.kinetic_energy(k)
         V = self.potential_energy(electron_density)
         H = T + V
-        logger.info("总哈密顿量构建完成。")
+        logger.debug("总哈密顿量构建完成。")
         return H

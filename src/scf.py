@@ -52,7 +52,7 @@ class SCF:
         electron_density = np.ones(num_G) * 0.5  # 简化为常数密度
         return electron_density
     
-    def build_hamiltonian(self, electron_density):
+    def build_all_hamiltonians(self, electron_density):
         """
         使用当前电子密度构建哈密顿量矩阵。
         
@@ -66,10 +66,16 @@ class SCF:
         H : numpy.ndarray
             总哈密顿量矩阵。
         """
-        H = self.hamiltonian_builder.total_hamiltonian(electron_density)
-        return H
+        self.logger.info("构建所有k点的哈密顿量...")
+        Hamiltonians = []
+        for k in self.kpoints.k_points:
+            self.logger.debug(f"为k点 {k} 构建哈密顿量。")
+            H = self.hamiltonian_builder.total_hamiltonian(electron_density, k)
+            Hamiltonians.append(H)
+        self.logger.info("所有哈密顿量构建完成。")
+        return Hamiltonians
     
-    def compute_total_energy(self, H, eigenvalues):
+    def compute_total_energy(self,eigenvalues):
         """
         计算总能量（简化版）。
         
@@ -86,10 +92,10 @@ class SCF:
             总能量。
         """
         # 简化的总能量计算：所有占据态能量之和
-        total_energy = np.sum(eigenvalues)
+        total_energy = sum([np.sum(eigvals) for eigvals in eigenvalues])
         return total_energy
     
-    def update_density(self, eigenvectors):
+    def update_density_parallel(self, eigenvectors_list):
         """
         根据本征向量更新电子密度。
         这里简化为电子密度作为本征向量的模平方的和。
@@ -105,8 +111,14 @@ class SCF:
             更新后的电子密度。
         """
         # 简化的电子密度更新
-        new_density = np.sum(np.abs(eigenvectors)**2, axis=1)
+        num_G = self.hamiltonian_builder.num_G
+        new_density = np.zeros(num_G)
+        for eigenvectors in eigenvectors_list:
+            # 确保 eigenvectors 的形状为 (num_G, num_eigen)
+            # 计算每个k点的电子密度贡献
+            new_density += np.sum(np.abs(eigenvectors)** 2, axis=1)
         return new_density
+    
     
     def run(self):
         """
@@ -125,26 +137,23 @@ class SCF:
         electron_density = self.initialize_density()
         for iteration in range(1, self.max_iterations + 1):
             self.logger.info(f"SCF迭代 {iteration}")
-            # 构建哈密顿量
-            H = self.build_hamiltonian(electron_density)
-            # 求解本征问题
-            num_eigen = self.hamiltonian_builder.num_eigen
-
-            # 初始化 KS_Solver 实例，传递 H 和 num_eigen
-            self.solver = KS_Solver(H, num_eigen)
-
-            eigenvalues, eigenvectors = self.solver.solve(H, num_eigen)
-            #eigenvalues, eigenvectors = self.solver.solve()
+            # 构建所有哈密顿量
+            Hamiltonians = self.build_all_hamiltonians(electron_density)
+            # 并行求解所有k点的本征问题
+            results = self.solver.solve_all(Hamiltonians)
+            # 提取本征值和本征向量
+            eigenvalues_all = [result[0] for result in results]
+            eigenvectors_all = [result[1] for result in results]
             # 计算总能量
-            total_energy = self.compute_total_energy(H, eigenvalues)
+            total_energy = self.compute_total_energy(eigenvalues_all)
             self.logger.info(f"总能量: {total_energy} eV")
             # 更新电子密度
-            new_density = self.update_density(eigenvectors)
+            new_density = self.update_density_parallel(eigenvectors_all)
             # 计算密度变化
             delta_density = np.linalg.norm(new_density - electron_density)
             self.logger.info(f"密度变化: {delta_density}")
             # 判断收敛
-            if delta_density < self.convergence_threshold:
+            if delta_density < self.zong:
                 self.logger.info("SCF循环收敛。")
                 return True, new_density, total_energy
             # 密度混合

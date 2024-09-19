@@ -22,7 +22,6 @@ def setup_logging():
         handlers=[
             logging.StreamHandler()
         ]
-
     )
 
 
@@ -90,7 +89,7 @@ def main():
     dim = structure_data.get('dim', 2)
     hamiltonian_builder = Hamiltonian(
         atomic_structure=atomic_structure,
-        k_points=kpoints,
+        #k_points=kpoints,
         pseudopotentials=pseudopotentials,
         exchange_correlation=exchange_correlation,
         dim=dim
@@ -104,10 +103,11 @@ def main():
     
     # 初始化自洽场（SCF）循环
     logger.info("初始化自洽场（SCF）循环...")
+    num_eigen = parameters_data.get('num_eigen', 10)  # 从参数文件读取，默认10
     scf = SCF(
         hamiltonian_builder=hamiltonian_builder,
         kpoints=kpoints,
-        solver=KS_Solver,
+        solver=KS_Solver(num_eigen=num_eigen, which='SM'),
         max_iterations=max_iterations,
         convergence_threshold=convergence_threshold,
         mixing_factor=mixing_factor
