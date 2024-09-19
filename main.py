@@ -3,6 +3,7 @@ import json
 import logging
 import numpy as np
 import os
+import math
 
 from src.atomic_structure import AtomicStructure
 from src.kpoints import KPoints
@@ -107,7 +108,7 @@ def main():
     scf = SCF(
         hamiltonian_builder=hamiltonian_builder,
         kpoints=kpoints,
-        solver=KS_Solver,
+        solver_class=KS_Solver,
         max_iterations=max_iterations,
         convergence_threshold=convergence_threshold,
         mixing_factor=mixing_factor
@@ -153,6 +154,7 @@ def main():
     plt.savefig(os.path.join('output', 'bandstructure.png'))
     plt.close()
     logger.info("能带结构图已保存。")
+
     
     logger.info("计算完成。")
 

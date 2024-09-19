@@ -1,7 +1,7 @@
 # src/hamiltonian.py
 
 import numpy as np
-from scipy.constants import electron_volt, pi
+from scipy.constants import pi, epsilon_0
 import logging
 
 # 配置日志记录
@@ -10,34 +10,37 @@ logger = logging.getLogger(__name__)
 
 class Hamiltonian:
     """
-    哈密顿量构建类，用于构建总的哈密顿量矩阵。
+    哈密顿量构建类，用于构建总的哈密顿量矩阵，包括动能、Hartree 势能、
+    赝势和交换-相关势能。
     """
 
-    def __init__(self, atomic_structure, k_points, pseudopotentials, exchange_correlation, max_G=10, num_eigen=10,dim=3):
+    def __init__(self, atomic_structure, k_points, pseudopotentials, exchange_correlation, max_G=10, num_eigen=10, dim=3):
         """
         初始化哈密顿量构建器。
 
         参数:
         --------
         atomic_structure : AtomicStructure
-            原子结构对象，包含晶格常数和原子位置。
+            原子结构对象，包含晶格矢量和原子位置。
         k_points : KPoints
             k点对象，包含网格信息。
         pseudopotentials : dict
-            赝势字典，键为元素符号，值为赝势参数。
+            赝势字典，键为元素符号，值为赝势参数（例如V_pp(G)）。
         exchange_correlation : ExchangeCorrelation
             交换-相关势对象，包含相关势计算方法。
         max_G : int
             最大G矢量的范围。
         num_eigen : int
             要求解的本征值和本征向量的数量。
+        dim : int
+            系统维度，2表示二维材料，3表示三维材料。
         """
         self.atomic_structure = atomic_structure
         self.k_points = k_points
         self.pseudopotentials = pseudopotentials
         self.exchange_correlation = exchange_correlation
         self.max_G = max_G
-        self.dim=dim
+        self.dim = dim
         self.G_vectors = self.generate_G_vectors()
         self.num_G = len(self.G_vectors)
         self.num_eigen = num_eigen
@@ -78,12 +81,10 @@ class Hamiltonian:
         返回:
         -------
         T : numpy.ndarray
-            动能矩阵，形状为 (num_G, num_G)。
+            动能矩阵，形状为 (num_G, num_G)，对角矩阵。
         """
         logger.info("计算动能部分...")
-        # 动能算符在平面波基组下为 (ħ²|G+k|²)/(2m)
-        # 这里我们使用简化的单位，使得 ħ²/(2m) = 1
-        # 真实计算中需要考虑实际的单位和缩放因子
+        # 计算 (k + G)^2
         k = self.k_points.current_k_point  # 当前k点
         G_plus_k = self.G_vectors + k  # |G + k|
         kinetic = np.sum(G_plus_k**2, axis=1)
@@ -91,44 +92,94 @@ class Hamiltonian:
         logger.info("动能部分计算完成。")
         return T
 
-    def potential_energy(self, electron_density):
+    def hartree_potential(self, rho_G):
         """
-        计算势能部分的哈密顿量矩阵，包括赝势和交换-相关势。
+        计算Hartree势能。
 
         参数:
         --------
-        electron_density : numpy.ndarray
-            电子密度数组，形状为 (num_G,)。
+        rho_G : numpy.ndarray
+            电子密度的傅里叶变换，形状为 (num_G,)。
 
         返回:
         -------
-        V : numpy.ndarray
-            势能矩阵，形状为 (num_G, num_G)。
+        V_H : numpy.ndarray
+            Hartree势能矩阵，形状为 (num_G, num_G)，对角矩阵。
         """
-        logger.info("计算势能部分...")
-        # 简化处理，假设势能为对角矩阵
-        # 真实计算中，赝势和交换-相关势可能有复杂的G依赖
-        # 此处使用赝势和交换-相关势的G=0分量
-        V_ps = 0.0
+        logger.info("计算Hartree势能...")
+        V_H = np.zeros_like(rho_G)
+        if rho_G is None:
+            logger.error("exchange_correlation_potential 被调用时，rho_G 为 None。")
+            raise ValueError("rho_G cannot be None in exchange_correlation_potential.")
+        
+        for i, G in enumerate(self.G_vectors):
+            G_norm = np.linalg.norm(G)
+            if G_norm != 0:
+                V_H[i] = 4 * pi / (G_norm**2) * rho_G[i]
+            else:
+                V_H[i] = 0.0  # 对于G=0，Hartree势能通常与核电荷中和
+        V_H_matrix = np.diag(V_H)
+        logger.info("Hartree势能计算完成。")
+        return V_H_matrix
+
+    def pseudopotential(self, rho_G):
+        """
+        计算赝势部分的势能。
+
+        参数:
+        --------
+        rho_G : numpy.ndarray
+            电子密度的傅里叶变换，形状为 (num_G,)。
+
+        返回:
+        -------
+        V_pp : numpy.ndarray
+            赝势势能矩阵，形状为 (num_G, num_G)，对角矩阵。
+        """
+        logger.info("计算赝势势能...")
+        V_pp = np.zeros_like(rho_G)
         for element, params in self.pseudopotentials.items():
-            # 简化赝势为常数，这里仅为示例
-            V_ps += params['V0']
+            V_pp += params['V_pp']  # 假设V_pp已经是G空间的赝势
+        V_pp_matrix = np.diag(V_pp)
+        logger.info("赝势势能计算完成。")
+        return V_pp_matrix
 
-        V_xc = self.exchange_correlation.calculate_potential(electron_density)
+    def exchange_correlation_potential(self, rho_real):
+        """
+        计算交换-相关势能。
 
-        V_total = V_ps + V_xc  # 总势能
-        V = np.diag([V_total] * self.num_G)
-        logger.info("势能部分计算完成。")
-        return V
+        参数:
+        --------
+        rho_real : numpy.ndarray
+            实空间中的电子密度，形状为 (num_real_grid,).
 
-    def total_hamiltonian(self, electron_density):
+        返回:
+        -------
+        V_xc : numpy.ndarray
+            交换-相关势能矩阵，形状为 (num_G, num_G)，对角矩阵。
+        """
+        logger.info("计算交换-相关势能...")
+        if rho_real is None:
+            logger.error("exchange_correlation_potential 被调用时，rho_real 为 None。")
+            raise ValueError("rho_real cannot be None in exchange_correlation_potential.")
+        
+        rho_avg = np.mean(rho_real)
+        V_xc_val = self.exchange_correlation.calculate_potential(rho_avg)
+        V_xc = np.full(self.num_G, V_xc_val)
+        V_xc_matrix = np.diag(V_xc)
+        logger.info(f"交换-相关势能计算完成: V_xc = {V_xc_val}")
+        return V_xc_matrix
+
+    def total_hamiltonian(self, rho_real, rho_G):
         """
         构建总的哈密顿量矩阵。
 
         参数:
         --------
-        electron_density : numpy.ndarray
-            电子密度数组，形状为 (num_G,)。
+        rho_real : numpy.ndarray
+            实空间中的电子密度，形状为 (num_real_grid,).
+        rho_G : numpy.ndarray
+            电子密度的傅里叶变换，形状为 (num_G,).
 
         返回:
         -------
@@ -137,7 +188,9 @@ class Hamiltonian:
         """
         logger.info("构建总哈密顿量...")
         T = self.kinetic_energy()
-        V = self.potential_energy(electron_density)
-        H = T + V
+        V_H = self.hartree_potential(rho_G)
+        V_pp = self.pseudopotential(rho_G)
+        V_xc = self.exchange_correlation_potential(rho_real)
+        H = T + V_H + V_pp + V_xc
         logger.info("总哈密顿量构建完成。")
         return H
