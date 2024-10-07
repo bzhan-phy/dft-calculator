@@ -1,7 +1,7 @@
 {
     "max_G": 10,
     "kpoints": {
-        "num_kpoints": 4
+        "num_kpoints": 8
     },
     "pseudopotentials": {
         "C": {
@@ -12,7 +12,7 @@
         "functional": "LDA"
     },
     "scf": {
-        "max_iterations": 50,
+        "max_iterations": 100,
         "convergence_threshold": 1e-4,
         "mixing_factor": 0.3
     }

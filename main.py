@@ -142,7 +142,7 @@ def main():
     np.savetxt(bandstructure_path, bandstructure)
     logger.info("能带结构计算完成。")
     
-    # 绘制能带图（可选）
+    # 绘制能带图
     logger.info("绘制能带图...")
     import matplotlib.pyplot as plt
     plt.figure(figsize=(8,6))

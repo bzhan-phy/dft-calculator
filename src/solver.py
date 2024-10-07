@@ -38,19 +38,33 @@ def solve_eigenproblem(H, num_eigen, which='SM'):
         对应的本征向量，每一列对应一个本征值。
     """
     logger.info("开始求解本征问题...")
+    N = H.shape[0]
+
     if scipy.sparse.issparse(H):
-        logger.info("哈密顿量为稀疏矩阵，使用稀疏求解器。")
-        # 使用稀疏求解器 (适用于对称或厄米矩阵)
-        #eigenvalues, eigenvectors = scipy.sparse.linalg.eigsh(H, k=num_eigen, which=which)
-        eigenvalues, eigenvectors = scipy.sparse.linalg.eigsh(H, k=num_eigen, which=which)
+        if num_eigen > N:
+            raise ValueError(f"请求的本征值数量 k={num_eigen} 超过矩阵维度 N={N}。")
+        elif num_eigen == N:
+            logger.info("请求的本征值数量 k = 矩阵维度 N，转换为稠密矩阵并使用 scipy.linalg.eigh。")
+            H_dense = H.toarray()
+            eigenvalues, eigenvectors = scipy.linalg.eigh(H_dense)
+        else:
+            logger.info("哈密顿量为稀疏矩阵，使用稀疏求解器。")
+            try:
+                eigenvalues, eigenvectors = scipy.sparse.linalg.eigsh(H, k=num_eigen, which=which)
+            except (RuntimeWarning, TypeError) as e:
+                logger.warning(f"遇到异常 {e}，尝试使用稠密求解器。")
+                H_dense = H.toarray()
+                eigenvalues, eigenvectors = scipy.linalg.eigh(H_dense)
     else:
         logger.info("哈密顿量为稠密矩阵，使用稠密求解器。")
-        # 使用稠密求解器
         eigenvalues, eigenvectors = scipy.linalg.eigh(H)
-        # 选取前 num_eigen 个本征值和本征向量
-        eigenvalues = eigenvalues[:num_eigen]
-        eigenvectors = eigenvectors[:, :num_eigen]
-    
+        if num_eigen > N:
+            raise ValueError(f"请求的本征值数量 k={num_eigen} 超过矩阵维度 N={N}。")
+
+    # 选取前 num_eigen 个本征值和本征向量
+    eigenvalues = eigenvalues[:num_eigen]
+    eigenvectors = eigenvectors[:, :num_eigen]
+
     logger.info("本征问题求解完成。")
     return eigenvalues, eigenvectors
 

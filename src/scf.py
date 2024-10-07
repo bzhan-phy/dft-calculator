@@ -121,7 +121,7 @@ class SCF:
         
         # 交换-相关能量
         # 已经包括在 V_xc 中，可能需要减少重复计算
-        # Here, assume E_xc is calculated separately
+        # 假设 E_xc 单独计算
         E_xc = self.exchange_correlation_energy(np.mean(rho_real))
         
         # 总能量
@@ -198,6 +198,9 @@ class SCF:
         # 初始化混合电子密度用于混合
         rho_G_old = rho_G.copy()
 
+        # 记录每次能量变化，单元测试
+        self.iteration_energies = []
+
         for iteration in range(1, self.max_iterations + 1):
             self.logger.info(f"SCF迭代 {iteration}")
             # 构建哈密顿量
@@ -211,6 +214,9 @@ class SCF:
 
             # 计算总能量
             E_total = self.compute_total_energy(H, eigenvalues, rho_G, rho_real)
+
+            # 记录每次能量变化，单元测试
+            self.iteration_energies.append(E_total)
 
             self.logger.info(f"总能量: {E_total:.6f} eV")
 
