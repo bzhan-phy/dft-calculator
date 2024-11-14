@@ -153,21 +153,6 @@ python main.py
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
 
-## 📚 引用 | Citation
-
-如果您在学术工作中使用本项目，请引用：
-
-```bibtex
-@software{dft_calculator,
-  title = {{2D Material Heterojunction Bandstructure Simulator}},
-  author = {Your Name},
-  year = {2024},
-  version = {1.0.0},
-  doi = {10.5281/zenodo.XXXXXX},
-  url = {https://github.com/bzhan-phy/dft-calculator},
-  license = {MIT}
-}
-```
 
 ## 🙏 致谢 | Acknowledgements
 
@@ -177,8 +162,8 @@ Thanks to all developers and researchers who contribute to this project.
 
 ## 📞 联系方式 | Contact
 
-- 项目负责人：[Your Name]
-- 电子邮件：[your.email@example.com]
+- 项目负责人：[Bangzheng Han]
+- 电子邮件：[bzhan.phy@gmail.com]
 - GitHub: [https://github.com/bzhan-phy](https://github.com/bzhan-phy)
 
 ---
