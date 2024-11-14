@@ -162,8 +162,8 @@ Thanks to all developers and researchers who contribute to this project.
 
 ## 📞 联系方式 | Contact
 
-- 项目负责人：[Bangzheng Han]
-- 电子邮件：[bzhan.phy@gmail.com]
+- 项目负责人：Bangzheng Han
+- 电子邮件：bzhan.phy@gmail.com
 - GitHub: [https://github.com/bzhan-phy](https://github.com/bzhan-phy)
 
 ---
